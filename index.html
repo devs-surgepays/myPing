@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=6.0" />
+    <title>Network Latency Dashboard</title>
+    <!-- TailwindCSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Forzar el modo oscuro */
+      @media (prefers-color-scheme: dark) {
+        html {
+          color-scheme: dark;
+        }
+      }
+      html {
+        height: 100%;
+        margin: 0;
+        background-color: #1a202c; /* Fondo oscuro */
+        overflow: hidden;
+      }
+
+      .network-background {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        pointer-events: none;
+      }
+
+      /* Estilo de los nodos */
+      circle-node {
+        fill: rgb(47, 196, 196);
+        opacity: 0.6;
+        transition: r 0.2s ease-out, opacity 0.2s ease-out;
+      }
+
+      /* Estilo de las líneas que conectan los nodos */
+      line-node{
+        stroke: white;
+        stroke-width: 0.5;
+        opacity: 0.1;
+      }
+
+      .svg-graph {
+        width: 100%;
+        height: 200px; /* Aumentar la altura del gráfico SVG */
+      }
+      .svg-line {
+        stroke: rgba(75, 192, 192, 1);
+        fill: none;
+        stroke-width: 2;
+      }
+      .svg-point {
+        fill: rgb(211, 255, 251);
+        stroke-width: 8;
+      }
+      .svg-text {
+        font-size: 12px; /* Aumentar el tamaño de la fuente */
+        fill: #ffffff; /* Color del texto de latencia */
+        text-anchor: middle; /* Centrar el texto en cada punto */
+      }
+
+      /* Estilos para las etiquetas arrastrables */
+      .draggable-label {
+        position: absolute;
+        padding: 10px;
+        background-color: #333;
+        color: white;
+        border-radius: 4px;
+        cursor: grab;
+      }
+
+      /* Cambiar cursor cuando se está arrastrando */
+      .draggable-label:active {
+        cursor: grabbing;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-900 text-white">
+
+    <svg class="network-background" id="network-svg"></svg>
+
+    <script>
+      const svg = document.getElementById("network-svg");
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const numNodes = 500; // Número de nodos
+      const nodes = [];
+      const maxDistance = 100; // Distancia máxima para conectar nodos
+
+      // Crear nodos aleatoriamente
+      for (let i = 0; i < numNodes; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        const node = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        node.setAttribute("cx", x);
+        node.setAttribute("cy", y);
+        node.setAttribute("r", 1.5);
+        svg.appendChild(node);
+        nodes.push({ x, y, node });
+      }
+
+      // Crear las líneas de conexión entre nodos cercanos
+      function createConnections() {
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const distance = Math.sqrt(
+              Math.pow(nodes[i].x - nodes[j].x, 2) + Math.pow(nodes[i].y - nodes[j].y, 2)
+            );
+
+            if (distance < maxDistance) {
+              const line = document.createElementNS("http://www.w3.org/2000/svg", "line-node");
+              line.setAttribute("x1", nodes[i].x);
+              line.setAttribute("y1", nodes[i].y);
+              line.setAttribute("x2", nodes[j].x);
+              line.setAttribute("y2", nodes[j].y);
+              svg.appendChild(line);
+            }
+          }
+        }
+      }
+
+      createConnections();
+
+      // Animación al pasar el mouse
+      document.addEventListener("mousemove", (event) => {
+        const mouseX = event.clientX;
+        const mouseY = event.clientY;
+
+        nodes.forEach(({ x, y, node }) => {
+          const distance = Math.sqrt(Math.pow(x - mouseX, 2) + Math.pow(y - mouseY, 2));
+          if (distance < 100) {
+            const newRadius = 2.5 - (distance / 100) * 1.5;
+            node.setAttribute("r", Math.max(newRadius, 1.5));
+            node.setAttribute("opacity", 1 - distance / 100);
+          } else {
+            node.setAttribute("r", 1.5);
+            node.setAttribute("opacity", 0.6);
+          }
+        });
+      });
+
+      // Hacer el SVG responsivo
+      window.addEventListener("resize", () => {
+        svg.setAttribute("width", window.innerWidth);
+        svg.setAttribute("height", window.innerHeight);
+      });
+
+      // Inicializar el tamaño del SVG
+      svg.setAttribute("width", width);
+      svg.setAttribute("height", height);
+    </script>
+    <div class="container mx-auto p-2">
+      <h1 class="text-3xl font-bold text-center mb-6 mt-12 text-gray-100">
+        Network Latency Dashboard
+      </h1>
+
+      <!-- Tabla de Latencia -->
+      <table class="min-w-full bg-gray-800 shadow-md rounded mb-6">
+        <thead>
+          <tr>
+            <th class="py-2 px-4 bg-gray-700 text-white">Host</th>
+            <th class="py-2 px-4 bg-gray-700 text-white">Latencia (ms)</th>
+            <th class="py-2 px-4 bg-gray-700 text-white">Gráfico</th>
+          </tr>
+        </thead>
+        <tbody id="latency-table" class="text-gray-300">
+          <!-- Las filas se llenarán dinámicamente -->
+        </tbody>
+      </table>
+
+      <!-- Etiquetas arrastrables (pinned labels) -->
+      <div
+        id="label-1"
+        class="draggable-label"
+        style="left: 50px; top: 150px;"
+        draggable="true"
+        ondragstart="dragStart(event)"
+        ondragend="dragEnd(event)"
+      >
+        Google
+      </div>
+
+      <div
+        id="label-2"
+        class="draggable-label"
+        style="left: 150px; top: 250px;"
+        draggable="true"
+        ondragstart="dragStart(event)"
+        ondragend="dragEnd(event)"
+      >
+        FOX
+      </div>
+    </div>
+
+    <audio id="alarm-sound" src="alarm.mp3"></audio>
+
+    <script>
+      let offsetX, offsetY;
+      let alarmPlaying = false; // Bandera para controlar el estado de la alarma
+
+      // Al iniciar el arrastre
+      function dragStart(event) {
+        const rect = event.target.getBoundingClientRect();
+        offsetX = event.clientX - rect.left;
+        offsetY = event.clientY - rect.top;
+        event.target.style.opacity = "0.6";
+      }
+
+      // Al finalizar el arrastre
+      function dragEnd(event) {
+        event.target.style.left = `${event.clientX - offsetX}px`;
+        event.target.style.top = `${event.clientY - offsetY}px`;
+        event.target.style.opacity = "1";
+      }
+
+      const latencyData = {};
+      const maxPoints = 100;
+
+      async function loadJSON() {
+        try {
+          const response = await fetch("monitoring_data.json");
+          if (!response.ok) throw new Error("Error al cargar el archivo JSON");
+          const data = await response.json();
+          updateTableAndCharts(data);
+        } catch (error) {
+          console.error("Error al cargar los datos:", error);
+        }
+      }
+
+      function updateTableAndCharts(data) {
+        const tableBody = document.getElementById("latency-table");
+        tableBody.innerHTML = "";
+
+        for (const [host, latency] of Object.entries(data)) {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td class="border px-4 py-2 border-gray-700">${host}</td>
+            <td class="border px-4 py-2 border-gray-700">
+              <svg width="100" height="100" viewBox="0 0 100 100">
+                <!-- Fondo del velocímetro -->
+                <circle cx="50" cy="50" r="45" fill="none" stroke-width="5"/>
+                <!-- Círculo que cambia de color -->
+                <circle id="latencyCircle-${host}" cx="50" cy="50" r="45" stroke-width="0" />
+                <!-- Aguja del velocímetro -->
+                <line id="needle-${host}" x1="50" y1="50" x2="50" y2="5" stroke="white" stroke-width="2" />
+                <!-- Valor del latencia en el centro -->
+                <text x="50" y="70" text-anchor="middle" fill="white" font-size="18">${latency} ms</text>
+              </svg>
+            </td>
+            <td class="border px-2 py-2 border-gray-700">
+              <svg id="svg-${host}" class="svg-graph" viewBox="0 0 1200 200" preserveAspectRatio="none"></svg>
+            </td>
+          `;
+          tableBody.appendChild(row);
+
+          if (!latencyData[host]) {
+            latencyData[host] = [];
+          }
+
+          if (latencyData[host].length >= maxPoints) {
+            latencyData[host].shift();
+          }
+
+          latencyData[host].push(latency);
+
+          drawSVGGraph(`svg-${host}`, latencyData[host]);
+          updateNeedle(host, latency);
+          updateCircleColor(host, latency);
+        }
+      }
+
+      function updateNeedle(host, latency) {
+        const needle = document.getElementById(`needle-${host}`);
+        const maxRotation = 180;
+        const rotation = (latency / 100) * maxRotation;
+
+        needle.setAttribute("transform", `rotate(${rotation}, 50, 50)`);
+      }
+
+      function drawSVGGraph(svgId, data) {
+        const svg = document.getElementById(svgId);
+        svg.innerHTML = "";
+
+        const maxLatency = Math.max(...data, 100);
+        const points = data.map((latency, index) => {
+          const x = (index / maxPoints) * 1200;
+          const y = 200 - (latency / maxLatency) * 200;
+          return { x, y, latency };
+        });
+
+        const polyline = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "polyline"
+        );
+        polyline.setAttribute(
+          "points",
+          points.map((p) => `${p.x},${p.y}`).join(" ")
+        );
+        polyline.setAttribute("class", "svg-line");
+        svg.appendChild(polyline);
+
+       
+        
+        // Dibujar los puntos en el gráfico y mostrar el valor de latencia en cada punto con opacidad invertida
+        points.forEach((point, index) => {
+            const opacity = index / maxPoints; // Aumentar la opacidad para cada punto más reciente
+  
+            // Dibujar el círculo en el punto
+            const circle = document.createElementNS(
+              "http://www.w3.org/2000/svg",
+              "circle"
+            );
+            circle.setAttribute("cx", point.x);
+            circle.setAttribute("cy", point.y);
+            circle.setAttribute("r", 1.5); // Tamaño del punto
+            circle.setAttribute("class", "svg-point");
+            circle.setAttribute("style", `opacity: ${opacity};`); // Aplicar opacidad
+            svg.appendChild(circle);
+  
+            // Solo para el último punto (el más reciente)
+            if (index === points.length - 1) {
+              // Crear un rectángulo de fondo para el texto
+              const rect = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "rect"
+              );
+              const textPadding = 4; // Espacio alrededor del texto
+  
+              // Establecer el tamaño y posición del rectángulo detrás del texto
+              rect.setAttribute("x", point.x  -30); // Ajustar según el ancho del texto
+              rect.setAttribute("y", point.y - 3); // Ajustar para poner detrás del texto
+              rect.setAttribute("width", 60); // Ajustar el ancho del rectángulo
+              rect.setAttribute("height",20); // Ajustar la altura del rectángulo
+              rect.setAttribute("fill", "rgba(3, 140, 232, 80)"); // Color celeste con opacidad
+              rect.setAttribute("rx", 6); // Bordes redondeados
+              svg.appendChild(rect);
+  
+              // Dibujar el texto que muestra la latencia en el último punto
+              const text = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "text"
+              );
+              text.setAttribute("x", point.x);
+              text.setAttribute("y", point.y + 12); // Mover el texto debajo del punto
+              text.setAttribute("class", "svg-text");
+              text.setAttribute("style", "opacity: 1;"); // El último texto siempre visible
+              text.textContent = point.latency + 'ms';
+              svg.appendChild(text);
+            }
+          });
+      }
+
+      let criticalLatencyDetected = false; // Nueva bandera para rastrear si algún host tiene latencia crítica
+
+      function updateCircleColor(host, latency) {
+        const circle = document.getElementById(`latencyCircle-${host}`);
+      
+        if (latency > 280 || latency <= 0) {
+          // Si la latencia es crítica, poner el círculo en rojo
+          circle.setAttribute("fill", "red");
+          circle.setAttribute("opacity", "0.2"); // Establece la opacidad al 20%
+
+      
+          // Marcar que se ha detectado al menos una latencia crítica
+          criticalLatencyDetected = true;
+        } else if (latency < 280 && latency > 150) {
+          // Latencia moderada, marcar amarillo
+          circle.setAttribute("fill", "yellow");
+          circle.setAttribute("opacity", "0.2"); // Establece la opacidad al 20%
+
+        } else {
+          // Latencia normal, cambiar el color a celeste
+          circle.setAttribute("fill", "green");
+          circle.setAttribute("opacity", "0.1"); // Establece la opacidad al 20%
+        }
+      }
+      
+      function checkAlarmStatus() {
+        const alarm = document.getElementById("alarm-sound");
+      
+        if (criticalLatencyDetected && !alarmPlaying) {
+          // Si se ha detectado latencia crítica y la alarma no está sonando, iniciar la alarma
+          alarm.play();
+          alarmPlaying = true; // Marcar la alarma como activa
+        } else if (!criticalLatencyDetected && alarmPlaying) {
+          // Si no se detecta más latencia crítica, detener la alarma
+          alarm.pause();
+          alarmPlaying = false; // Marcar la alarma como inactiva
+        }
+      }
+      
+      // Después de actualizar los colores de todos los círculos, verifica si se debe activar la alarma
+      function updateTableAndCharts(data) {
+        const tableBody = document.getElementById("latency-table");
+        tableBody.innerHTML = "";
+      
+        // Reiniciar la bandera antes de recorrer los hosts
+        criticalLatencyDetected = false;
+      
+        for (const [host, latency] of Object.entries(data)) {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td class="border px-4 py-2 border-gray-700">${host}</td>
+            <td class="border px-4 py-2 border-gray-700">
+              <svg width="100" height="100" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="45" fill="none" stroke-width="5" />
+                <circle id="latencyCircle-${host}" cx="50" cy="50" r="45" stroke-width="0" />
+                <line id="needle-${host}" x1="50" y1="50" x2="50" y2="5" stroke="white" stroke-width="2" />
+                <text x="50" y="70" text-anchor="middle" fill="white" font-size="18">${latency} ms</text>
+              </svg>
+            </td>
+            <td class="border px-2 py-2 border-gray-700">
+              <svg id="svg-${host}" class="svg-graph" viewBox="0 0 1200 200" preserveAspectRatio="none"></svg>
+            </td>
+          `;
+          tableBody.appendChild(row);
+      
+          if (!latencyData[host]) {
+            latencyData[host] = [];
+          }
+      
+          if (latencyData[host].length >= maxPoints) {
+            latencyData[host].shift();
+          }
+      
+          latencyData[host].push(latency);
+      
+          drawSVGGraph(`svg-${host}`, latencyData[host]);
+          updateNeedle(host, latency);
+          updateCircleColor(host, latency); // Actualizar el color del círculo
+        }
+      
+        // Después de actualizar todos los círculos, verificar si se debe reproducir o detener la alarma
+        checkAlarmStatus();
+      }
+
+      setInterval(loadJSON, 500);
+    </script>
+  </body>
+</html>
