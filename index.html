@@ -450,25 +450,46 @@
 
       let criticalLatencyDetected = false; // Nueva bandera para rastrear si algún host tiene latencia crítica
 
+
       function updateCircleColor(host, latency) {
         const circle = document.getElementById(`latencyCircle-${host}`);
-
-        if (latency > 280 || latency <= 0) {
+      
+        // Revisar si la latencia es crítica o el host está caído
+        if (latency > 280 || latency <= 0 || latency == "Timeout" || latency == "NaN") {
           // Si la latencia es crítica, poner el círculo en rojo
           circle.setAttribute("fill", "red");
           circle.setAttribute("opacity", "0.2"); // Establece la opacidad al 20%
-
-          // Marcar que se ha detectado al menos una latencia crítica
+      
+          // Marcar que se ha detectado al menos una latencia crítica o caída
           criticalLatencyDetected = true;
+      
+          // Activar alarma si es necesario
+          if (!alarmPlaying) {
+            document.getElementById("alarm-sound").play(); // Reproducir alarma
+            alarmPlaying = true; // Marcar la alarma como activa
+          }
+          
         } else if (latency < 280 && latency > 150) {
           // Latencia moderada, marcar amarillo
           circle.setAttribute("fill", "yellow");
           circle.setAttribute("opacity", "0.2"); // Establece la opacidad al 20%
+          
         } else {
           // Latencia normal, cambiar el color a celeste
           circle.setAttribute("fill", "green");
-          circle.setAttribute("opacity", "0.1"); // Establece la opacidad al 20%
+          circle.setAttribute("opacity", "0.1"); // Establece la opacidad al 10%
         }
+      
+        // Desactivar alarma si no hay latencias críticas detectadas
+        if (!criticalLatencyDetected && alarmPlaying) {
+          document.getElementById("alarm-sound").pause(); // Detener alarma
+          alarmPlaying = false; // Marcar la alarma como inactiva
+        }
+      }
+      
+      // Reiniciar la variable `criticalLatencyDetected` al procesar todos los hosts
+      function resetCriticalLatencyFlag() {
+        criticalLatencyDetected = false;
       }
 
       function checkAlarmStatus() {
