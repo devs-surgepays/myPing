@@ -6,7 +6,7 @@ import http.server
 import socketserver
 
 # Lista de direcciones IP o DNS para hacer ping
-hosts = ["8.8.8.8", "1.1.1.1", "google.com", "3.225.217.176"]
+hosts = ["3.220.131.96", "18.204.167.42", "3.92.116.42", "3.225.217.176","190.242.162.250","172.24.13.10","172.24.13.20" ,"8.8.8.8"]
 
 # Ruta del archivo JSON
 json_file = "monitoring_data.json"
